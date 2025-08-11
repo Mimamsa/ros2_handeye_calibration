@@ -90,6 +90,8 @@ class DataCollector(Node):
     def capture_point_service_callback(self, req: Trigger.Request, resp: Trigger.Response):
         # get transforms 
         time = self.get_clock().now() - Duration(seconds=1)
+        robot = None
+        tracking = None
 
         try:
             # here we trick the library (it is actually made for eye_in_hand only). Trust me, I'm an engineer
@@ -112,11 +114,18 @@ class DataCollector(Node):
             self.get_logger().error("Could not get transforms")
             self.get_logger().error(str(ex))
 
-        self.get_logger().info("robot: " + tf_to_string(robot))
-        self.get_logger().info("tracking: " + tf_to_string(tracking))
-
-        self.robot_samples.append(get_transform(robot.transform))
-        self.tracking_samples.append(get_transform(tracking.transform))
+        # Check if the transformations (robot and tracking) exist
+        if robot and tracking:
+            self.get_logger().info("robot: " + tf_to_string(robot))
+            self.get_logger().info("tracking: " + tf_to_string(tracking))  
+            self.robot_samples.append(get_transform(robot.transform))     
+            self.tracking_samples.append(get_transform(tracking.transform))
+        else:
+            msg = "One of the transformations (robot or tracking) not exists. Skip this capture point."
+            self.get_logger().error(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
 
         cal = self.get_calibration()
         if cal is None:
